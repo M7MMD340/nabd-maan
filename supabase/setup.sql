@@ -90,7 +90,7 @@ begin
   select couple_id into c from profiles where id = auth.uid();
   if c is not null then return (select code from couples where id = c); end if;
   loop
-    k := upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 6));
+    k := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
     exit when not exists (select 1 from couples where code = k);
   end loop;
   insert into couples (code, created_by) values (k, auth.uid()) returning id into c;
@@ -198,6 +198,7 @@ grant select, insert, update on public.products to authenticated;
 
 revoke execute on function public.create_couple(), public.join_couple(text), public.my_health_token(),
   public.ingest_health(text, numeric, numeric, numeric, numeric), public.handle_new_user() from public;
+revoke execute on function public.create_couple(), public.join_couple(text), public.my_health_token(), public.my_couple() from anon;
 grant execute on function public.my_couple(), public.create_couple(), public.join_couple(text), public.my_health_token() to authenticated;
 grant execute on function public.ingest_health(text, numeric, numeric, numeric, numeric) to anon, authenticated;
 
