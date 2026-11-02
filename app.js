@@ -20,6 +20,14 @@ const eaten=id=>tot(id).k;
 const total=()=>WORK[DOW].ex.length;
 function dayScore(id){const p=S.p[id],e=eaten(id),st=Math.min(1,p.steps/p.stepGoal),wo=p.done.length/total();
   const eat=e<=p.target?Math.min(1,e/p.target):Math.max(0,1-(e-p.target)/p.target);return(st+wo+eat)/3}
+// calories burned today: steps by body weight, each finished exercise by the day's MET over its share of the session, a finished penalty by its own kcal.
+// When Apple Health sends active energy and it is higher, it wins (it already counts the walking and the workout).
+const WMET=[5,5,7,4,6,3.5,4.5];
+const exK=(w,d=DOW)=>WMET[d]*3.5*w/200*WORK[d].min/WORK[d].ex.length;
+function burn(id){const p=S.p[id],w=p.w||70,W=WORK[DOW];
+  const st=p.steps*w*.0005,wo=p.done.reduce((t,i)=>t+(W.ex[i]&&!/مشي/.test(W.ex[i].n)?exK(w):0),0);
+  const pen=S.pen&&S.pen.who===id&&S.pen.done?S.pen.kcal:0,est=st+wo+pen,hk=p.active>0?p.active:null;
+  return{st,wo,pen,est,hk,total:Math.round(hk&&hk>est?hk:est),goal:p.stepGoal*w*.0005+W.ex.filter(e=>!/مشي/.test(e.n)).length*exK(w)}}
 function status(id){const p=S.p[id];const over=eaten(id)-p.target;
   if(S.pen&&S.pen.who===id&&!S.pen.done&&over>0)return['over','+'+fmt(over)+' سعرة'];
   if(dayScore(id)>.9)return['good',g(id,'يومه ممتاز','يومها ممتاز')];
@@ -74,9 +82,10 @@ const sv=k=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 const ic=(k,bg)=>`<span class="ico" style="background:${bg}">${sv(k)}</span>`;
 function ava(id,size){const p=S.p[id];return `<span class="ava" style="--pc:${COLORS[p.color]};width:${size}px;height:${size}px;font-size:${Math.round(size*.4)}px">${p.photo?`<img src="${p.photo}" alt="">`:esc(p.name.slice(0,1))}</span>`}
 function ringSvg(v,col,r,w,box){const C=2*Math.PI*r,c=box/2;return `<svg viewBox="0 0 ${box} ${box}"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-opacity=".18" stroke-width="${w}"/><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" class="arc" style="--C:${C}" stroke-dasharray="${C*Math.min(1,v)} ${C}"/></svg>`}
-const ringAva=id=>`<span class="rw">${ringSvg(dayScore(id),COLORS[S.p[id].color],50,9,112)}${ava(id,88)}</span>`;
+const ringAva=id=>`<span class="rw" style="--pc:${COLORS[S.p[id].color]}">${ringSvg(dayScore(id),COLORS[S.p[id].color],50,9,112)}${ava(id,88)}</span>`;
 const nav=(title,sub)=>`<div class="mininav" aria-hidden="true">${title}</div><header class="nav pad"><div class="t"><small>${sub}</small><h1>${title}</h1></div><button class="me" data-act="profile" aria-label="ملفي">${ava(me(),38)}</button></header>`;
 const dateStr=()=>{const d=new Date();return `${DAYS[d.getDay()]}، ${d.getDate()} ${MON[d.getMonth()]}`};
+const hello=()=>{const h=new Date().getHours();return h<5?'سهرانين؟ 🌙':h<12?'صباح الخير ☀️':h<17?'يومكم سعيد 🌤️':'مساء الخير 🌙'};
 
 /* ---- page: today ---- */
 function todayPage(){
@@ -96,7 +105,7 @@ function todayPage(){
   const v=(id,val,frac,sub,over)=>`<span class="v" style="--pc:${COLORS[S.p[id].color]}"><b class="num ${over?'over':''}">${val}</b><span class="mini"><i style="width:${Math.max(0,Math.min(100,frac*100))}%;${over?'background:var(--red)':''}"></i></span>${sub?`<small class="num">${sub}</small>`:''}</span>`;
   const eat=id=>{const p=S.p[id],e=eaten(id),o=e>p.target;return v(id,fmt(e),e/p.target,o?'+'+fmt(e-p.target):'من '+fmt(p.target),o)};
   const wo=id=>v(id,S.p[id].done.length+'/'+total(),S.p[id].done.length/total(),WORK[DOW].t);
-  return nav('اليوم',dateStr())+`<main class="pad">
+  return nav('اليوم',hello()+' · '+dateStr())+`<main class="pad">
    <section class="group hero" style="--ca:${COLORS[pa.color]};--cb:${COLORS[pb.color]}">
     <div class="duo">${person(A)}<div class="score"><span class="n num"><span data-count="${pb.points}">${pb.points}</span><i>:</i><span data-count="${pa.points}">${pa.points}</span></span><small>نقاط الأسبوع</small></div>${person(B)}</div>
     <div class="together"><div class="r"><b>هدفنا بالأسبوع: ${fmt(w.goal/1000)} ألف خطوة</b><span class="num">باقي ${fmt((w.goal-w.steps)/1000)} ألف</span></div>
@@ -107,7 +116,8 @@ function todayPage(){
    <section class="sec"><div class="cmp-head"><span></span><span>${esc(pa.name)}</span><span>${esc(pb.name)}</span></div>
     <div class="group">
      ${row('walk','var(--green)','الخطوات',v(A,fmt(pa.steps),pa.steps/pa.stepGoal,pa.healthAt?'':'لا بيانات'),v(B,fmt(pb.steps),pb.steps/pb.stepGoal,pb.healthAt?'':'لا بيانات'))}
-     ${row('flame','var(--orange)','الأكل',eat(A),eat(B))}
+     <button class="cell" data-act="burn" aria-label="تفاصيل الحرق"><span class="lab">${ic('flame','#FF2D55')}الحرق<span class="chev">‹</span></span>${v(A,fmt(burn(A).total),burn(A).total/burn(A).goal,'سعرة')}${v(B,fmt(burn(B).total),burn(B).total/burn(B).goal,'سعرة')}</button>
+      ${row('leaf','var(--orange)','الأكل',eat(A),eat(B))}
      ${row('bolt','#5856D6','التمرين',wo(A),wo(B))}
      ${row('heart','var(--red)','نبض الراحة',v(A,pa.rest??'—',pa.rest?1-(pa.rest-50)/40:0),v(B,pb.rest??'—',pb.rest?1-(pb.rest-50)/40:0))}
     </div><p class="hint">${pa.healthAt?'الخطوات والنبض من Apple Health · آخر تحديث '+pa.healthAt:'الخطوات والنبض من Apple Health. <button class="inline-link" data-act="health">اربطه الحين</button>'}</p></section>
@@ -129,7 +139,7 @@ function foodPage(){
     body=`<section class="group sum">
       <div><div class="big num ${over?'over':''}" data-count="${Math.round(Math.abs(left))}" data-pre="${over?'+':''}">${over?'+'+fmt(-left):fmt(left)}</div><div class="sub">${over?'سعرة فوق الهدف':'سعرة باقية ل'+(own?'ك':g(id,'ه','ها'))+' اليوم'}</div></div>
       <div class="lbar ${over?'over':''}"><i style="width:${Math.min(100,T.k/p.target*100)}%"></i></div>
-      <div class="macros"><div><b class="num">${fmt(T.k)}</b><span>أكل</span></div><div><b class="num">${fmt(p.target)}</b><span>الهدف</span></div><div><b class="num">${Math.round(T.p)}/${p.protein}</b><span>بروتين جم</span></div></div>
+      <div class="macros"><div><b class="num">${fmt(T.k)}</b><span>أكل</span></div><button data-act="burn" data-id="${id}"><b class="num">${fmt(burn(id).total)}</b><span>حرق 🔥</span></button><div><b class="num">${fmt(p.target)}</b><span>الهدف</span></div><div><b class="num">${Math.round(T.p)}/${p.protein}</b><span>بروتين جم</span></div></div>
      </section>${tip}
      ${MEALT.map(m=>{const L=p.log[m]||[],mt=tot(id,m);if(!own&&!L.length)return'';return `<section class="sec" data-meal="${m}"><div class="cap"><span>${m}</span><span class="num">${L.length?fmt(mt.k)+' سعرة':''}</span></div><div class="group">
        ${L.map((x,i)=>{const v=itemK(x);return own?`<button class="row plain" data-act="delitem" data-m="${m}" data-i="${i}"><span class="tx"><b>${esc(food(x.n).n)}</b><span class="num">${qtyItem(x)} · ${Math.round(v.p)} بروتين</span></span><span class="end num">${fmt(v.k)}</span></button>`:`<div class="row plain"><span class="tx"><b>${esc(food(x.n).n)}</b><span class="num">${qtyItem(x)}</span></span><span class="end num">${fmt(v.k)}</span></div>`}).join('')}
@@ -153,7 +163,7 @@ function gymPage(){
   const date=k=>{const d=new Date();d.setDate(d.getDate()+(k-DOW));return d.getDate()};
   return nav('التمرين',isToday?'تمرين اليوم':DAYS[sel])+`<main class="pad">
    <div class="strip">${DAYL.map((l,i)=>`<button class="dayc ${i===DOW?'today':''}" data-act="wday" data-d="${i}" aria-pressed="${i===sel}" aria-label="${DAYS[i]}">${l}<b class="num">${date(i)}</b></button>`).join('')}</div>
-   <section class="group wcard"><div class="tx"><h2>${W.t}</h2><span>${W.min} دقيقة · ${W.ex.length} تمارين</span>
+   <section class="group wcard"><div class="tx"><h2>${W.t}</h2><span>${W.min} دقيقة · ${W.ex.length} تمارين · تحرق ~${fmt(Math.round(W.ex.filter(e=>!/مشي/.test(e.n)).length*exK(pa.w||70,sel)/10)*10)} سعرة</span>
      ${isToday?`<span class="partner-did">${ava(B,18)} ${esc(pb.name)} ${g(B,'خلّص','خلّصت')} ${theirs.length} من ${W.ex.length}</span>`:''}</div>
     <span class="pring">${ringSvg(isToday?cnt/tot2:0,'var(--green)',30,8,74)}<b class="num">${isToday?cnt+'/'+tot2:'–'}</b></span></section>
    ${myPen?`<section class="sec"><div class="cap"><span>العقاب من ${esc(pb.name)}</span><span>+10 نقاط</span></div><div class="group">
@@ -354,6 +364,17 @@ function updAmt(){const pr=S.products[S.amt.code],gr=S.amt.g||0;if(!$('#amt-k'))
   $('#amt-k').textContent=fmt(pr.k*gr/100);$('#amt-p').textContent='سعرة · '+Math.round((pr.p||0)*gr/100)+' جم بروتين';
   document.querySelectorAll('#amtchips .chip').forEach(b=>b.setAttribute('aria-pressed',Math.abs(+b.dataset.g-gr)<.01))}
 const guessMeal=()=>{const h=new Date().getHours();return h<11?'فطور':h<16?'غداء':h<21?'عشاء':'سناك'};
+function burnSheet(id){const p=S.p[id],b=burn(id),own=id===me(),W=WORK[DOW];
+  const r=(t,s,k)=>`<div class="row plain"><span class="tx"><b>${t}</b><span class="num">${s}</span></span><span class="end num">${fmt(k)}</span></div>`;
+  sheet(sheetBar('الحرق'+(own?'':' · '+esc(p.name)))+`<section class="group sum burnhead"><div><div class="big num">${fmt(b.total)}</div><div class="sub">سعرة ${own?'حرقتها':g(id,'حرقها','حرقتها')} اليوم بالحركة</div></div>
+    <div class="lbar"><i style="width:${Math.min(100,b.total/b.goal*100)}%"></i></div></section>
+   <section class="sec"><div class="cap"><span>من وين جات</span><span>سعرة</span></div><div class="group">
+    ${r('الخطوات',fmt(p.steps)+' خطوة',b.st)}
+    ${r('التمرين',p.done.length+' من '+W.ex.length+' · '+W.t,b.wo)}
+    ${b.pen?r('العقاب','خلّصه 💪',b.pen):''}
+    ${b.hk?r('Apple Health','الطاقة النشطة من الجوال/الساعة',b.hk):''}
+   </div><p class="hint">${b.hk?(b.hk>b.est?'نعتمد رقم Apple Health لأنه أدق ويشمل كل حركتك.':'نعتمد حسابنا لأنه أعلى من رقم Apple Health اليوم.'):`محسوبة من وزنك (${fmt(p.w||70)} كجم): كل 1000 خطوة تقريباً ${fmt((p.w||70)*.5)} سعرة، والتمرين حسب نوعه ومدته.`}</p></section>
+   <div class="tipbox">${ic('leaf','var(--green)')}<span>هدف الأكل (${fmt(p.target)}) محسوب أصلاً على نشاطك المعتاد، فالحرق هنا للمتابعة والمنافسة بينكم وما ينضاف على الأكل.</span></div>`)}
 function cheerSheet(){const b=S.p[them()];sheet(sheetBar('شجّع '+esc(b.name))+`<div class="group cheers">${CHEERS.map((c,i)=>`<button data-act="sendcheer" data-i="${i}">${c}</button>`).join('')}</div>`)}
 function mealSheet(i){const m=MEALS[i];const T=m.items.reduce((t,[n,gr])=>{const v=itemK({n,g:gr});t.k+=v.k;t.p+=v.p;return t},{k:0,p:0});
   sheet(sheetBar(m.t)+`<div><h2>${m.n}</h2><p class="hint" style="padding:0;margin-top:4px">${fmt(T.k)} سعرة · ${Math.round(T.p)} جم بروتين · ${m.min} دقيقة</p></div>
@@ -418,6 +439,7 @@ document.addEventListener('click',e=>{
    case 'browse':S.browse=d.c;document.querySelectorAll('#cats .chip').forEach(b=>b.setAttribute('aria-pressed',b===el));$('#browse').innerHTML=browseList();return;
    case 'pickfood':{const f=FD[d.n];if(!f)return;trayAdd([defItem(f)]);const inp=$('#food');if(inp&&inp.value){inp.value='';draft=[];drawTyped()}
      const pl=el.querySelector('.plus');if(pl){pl.textContent='✓';pl.classList.add('ok');setTimeout(()=>{pl.textContent='+';pl.classList.remove('ok')},900)}return}
+   case 'burn':burnSheet(d.id||me());return;
    case 'cheer':if(S.solo){inviteSheet();return}cheerSheet();return;
    case 'profile':profileSheet();return;
    case 'meal':mealSheet(+d.i);return;

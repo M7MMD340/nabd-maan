@@ -29,7 +29,7 @@ const err=m=>{const e=$('#err');if(e)e.textContent=m||''};
 const busy=(b,on)=>{if(b){b.disabled=on;b.style.opacity=on?.6:1}};
 
 function authScreen(mode){mode=mode||'in';screen(`
-  <div class="logo">${sv('today')}</div>
+  <img class="logo" src="icons/icon-192.png" alt="">
   <h1>نبض معاً</h1>
   <p class="lead">لياقة لشخصين: أكلكم وتمارينكم وخطواتكم، وتشجيع بينكم كل يوم.</p>
   <div class="seg wide" role="group" aria-label="الدخول">
@@ -70,7 +70,7 @@ function onboardScreen(p){const c=p.color||'blue';screen(`
   </form>`)}
 
 function pairScreen(){screen(`
-  <div class="logo">${sv('heart')}</div>
+  <img class="logo" src="icons/icon-192.png" alt="">
   <h1>اربط شريكك</h1>
   <p class="lead">واحد منكم يسوي رمز ويرسله، والثاني يدخله. بعدها كل واحد يشوف صفحة الثاني، والعقاب والتشجيع يوصلون.</p>
   <button class="btn" data-sact="mkcode">أنا أول واحد، سوّ لي رمز</button>
