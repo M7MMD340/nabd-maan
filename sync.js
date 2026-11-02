@@ -148,7 +148,7 @@ function weekFor(key){const p=S.p[key];if(p.placeholder)return{pts:0,steps:0};co
     const penDone=k===TODAY?(S.pen&&S.pen.who===key&&S.pen.done):pens.some(x=>x.who===id&&x.day===k&&x.done);if(penDone)pts+=10}
   return{pts,steps}}
 function recalc(){if(!S)return;const a=weekFor('a'),b=weekFor('b');S.p.a.points=a.pts;S.p.b.points=b.pts;
-  S.week={goal:100000,mine:a.steps,theirs:b.steps,steps:a.steps+b.steps}}
+  const g=(S.p.a.stepGoal+(S.solo?0:S.p.b.stepGoal))*7;S.week={goal:Math.round(g/5000)*5000,mine:a.steps,theirs:b.steps,steps:a.steps+b.steps}}
 const _render=render;render=function(){if(!S)return;recalc();_render()};
 
 /* ---------- saving: every change goes to Supabase shortly after ---------- */

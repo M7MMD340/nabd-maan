@@ -99,7 +99,7 @@ function todayPage(){
   return nav('اليوم',dateStr())+`<main class="pad">
    <section class="group hero" style="--ca:${COLORS[pa.color]};--cb:${COLORS[pb.color]}">
     <div class="duo">${person(A)}<div class="score"><span class="n num"><span data-count="${pb.points}">${pb.points}</span><i>:</i><span data-count="${pa.points}">${pa.points}</span></span><small>نقاط الأسبوع</small></div>${person(B)}</div>
-    <div class="together"><div class="r"><b>هدفنا: ${fmt(w.goal/1000)} ألف خطوة</b><span class="num">باقي ${fmt((w.goal-w.steps)/1000)} ألف</span></div>
+    <div class="together"><div class="r"><b>هدف الأسبوع مع بعض: ${fmt(w.goal/1000)} ألف خطوة</b><span class="num">باقي ${fmt((w.goal-w.steps)/1000)} ألف</span></div>
      <div class="tbar"><i style="width:${sa/w.goal*100}%;background:${COLORS[pa.color]}"></i><i style="width:${sb/w.goal*100}%;background:${COLORS[pb.color]}"></i></div></div>
    </section>
    ${S.solo?inviteCard():''}${action}
