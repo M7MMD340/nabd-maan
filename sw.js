@@ -1,6 +1,6 @@
 // keeps the app opening offline; live data from Supabase is never cached
-const V='nabd-93605892';
-const SHELL=['./','index.html','data.js?v=93605892','app.js?v=93605892','sync.js?v=93605892','manifest.webmanifest','icons/icon-192.png'];
+const V='nabd-93609174';
+const SHELL=['./','index.html','data.js?v=93609174','app.js?v=93609174','sync.js?v=93609174','manifest.webmanifest','icons/icon-192.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);

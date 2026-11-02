@@ -12,7 +12,7 @@ let S=null;
 const save=()=>{if(window.queueSync)queueSync()};
 const g=(id,m,f)=>S.p[id].sex==='f'?f:m;
 const me=()=>'a',them=()=>'b';
-function pushFeed(o){pushFeed(o);if(o.who==='a'&&window.outEvent)outEvent(o.t)}
+function pushFeed(o){S.feed.push(o);if(o.who==='a'&&window.outEvent)outEvent(o.t)}
 /* ---- logic ---- */
 function itemK(x){const f=food(x.n);if(!f||!f.k&&f.k!==0)return{k:0,p:0};return{k:f.k*x.g/100,p:f.p*x.g/100}}
 function tot(id,meal){const L=S.p[id].log;return(meal?[meal]:MEALT).reduce((t,m)=>{(L[m]||[]).forEach(x=>{const v=itemK(x);t.k+=v.k;t.p+=v.p});return t},{k:0,p:0})}
@@ -99,7 +99,7 @@ function todayPage(){
   return nav('اليوم',dateStr())+`<main class="pad">
    <section class="group hero" style="--ca:${COLORS[pa.color]};--cb:${COLORS[pb.color]}">
     <div class="duo">${person(A)}<div class="score"><span class="n num"><span data-count="${pb.points}">${pb.points}</span><i>:</i><span data-count="${pa.points}">${pa.points}</span></span><small>نقاط الأسبوع</small></div>${person(B)}</div>
-    <div class="together"><div class="r"><b>هدف الأسبوع مع بعض: ${fmt(w.goal/1000)} ألف خطوة</b><span class="num">باقي ${fmt((w.goal-w.steps)/1000)} ألف</span></div>
+    <div class="together"><div class="r"><b>هدفنا بالأسبوع: ${fmt(w.goal/1000)} ألف خطوة</b><span class="num">باقي ${fmt((w.goal-w.steps)/1000)} ألف</span></div>
      <div class="tbar"><i style="width:${sa/w.goal*100}%;background:${COLORS[pa.color]}"></i><i style="width:${sb/w.goal*100}%;background:${COLORS[pb.color]}"></i></div></div>
    </section>
    ${S.solo?inviteCard():''}${action}
@@ -131,7 +131,7 @@ function foodPage(){
       <div class="lbar ${over?'over':''}"><i style="width:${Math.min(100,T.k/p.target*100)}%"></i></div>
       <div class="macros"><div><b class="num">${fmt(T.k)}</b><span>أكل</span></div><div><b class="num">${fmt(p.target)}</b><span>الهدف</span></div><div><b class="num">${Math.round(T.p)}/${p.protein}</b><span>بروتين جم</span></div></div>
      </section>${tip}
-     ${MEALT.map(m=>{const L=p.log[m]||[],mt=tot(id,m);if(!own&&!L.length)return'';return `<section class="sec"><div class="cap"><span>${m}</span><span class="num">${L.length?fmt(mt.k)+' سعرة':''}</span></div><div class="group">
+     ${MEALT.map(m=>{const L=p.log[m]||[],mt=tot(id,m);if(!own&&!L.length)return'';return `<section class="sec" data-meal="${m}"><div class="cap"><span>${m}</span><span class="num">${L.length?fmt(mt.k)+' سعرة':''}</span></div><div class="group">
        ${L.map((x,i)=>{const v=itemK(x);return own?`<button class="row plain" data-act="delitem" data-m="${m}" data-i="${i}"><span class="tx"><b>${esc(food(x.n).n)}</b><span class="num">${qtyItem(x)} · ${Math.round(v.p)} بروتين</span></span><span class="end num">${fmt(v.k)}</span></button>`:`<div class="row plain"><span class="tx"><b>${esc(food(x.n).n)}</b><span class="num">${qtyItem(x)}</span></span><span class="end num">${fmt(v.k)}</span></div>`}).join('')}
        ${own?`<button class="row add" data-act="log" data-m="${m}">+ أضف ${m==='سناك'?'سناك':m}</button>`:''}</div></section>`}).join('')}`;
   }
@@ -212,8 +212,7 @@ function closeSheet(){stopCam();const sc=$('#layer .scrim:not(.closing)');if(!sc
   const sh=sc.querySelector('.sheet');sh.classList.remove('dragging');sh.style.transform='';sc.classList.remove('open');sc.classList.add('closing');
   const done=()=>sc.remove();sh.addEventListener('transitionend',done,{once:true});setTimeout(done,600)}
 const sheetBar=(title,right='<button class="link" data-act="close">تم</button>',left='<span class="link"></span>')=>`<div class="grab"></div><div class="bar">${left}<h3>${title}</h3>${right}</div>`;
-let draft=[];
-const EMPTY='<div class="item" style="color:var(--label2)">اكتبها مثل ما تقولها: «توست بر شريحتين»، «دجاج مقلي 150»</div>';
+let draft=[],tray=[],edit=null;
 const cats=()=>[...new Set(FOODS.map(f=>f.cat))];
 const times=n=>n===1?'مرة':n===2?'مرتين':n<=10?n+' مرات':n+' مرة';
 const spinner='<span class="spin" aria-hidden="true"></span>';
@@ -226,25 +225,74 @@ const freq=id=>Object.values(S.p[id].hist).filter(x=>food(x.n)).sort((a,b)=>b.co
 function addItems(A,items,label){const before=eaten(A),m=S.logMeal||guessMeal();S.p[A].log[m].push(...items);remember(A,items);
   const k=items.reduce((s,x)=>s+itemK(x).k,0);pushFeed({who:A,t:g(A,'سجّل','سجّلت')+' '+(label||m)+' · '+fmt(k)+' سعرة',at:now()});checkOver(A,before);return k}
 
-function logSheet(meal){S.logMeal=meal||guessMeal();draft=[];S.browse=S.browse&&cats().includes(S.browse)?S.browse:cats()[0];const fr=freq(me());
-  sheet(sheetBar('وش أكلت؟','<button class="link" data-act="addfood" style="font-weight:600">أضف</button>','<button class="link" data-act="close">إلغاء</button>')+`
+// the meal being built: everything picked, typed or scanned lands in «وجبتك», where each item's amount is adjusted before one tap adds it all
+function logSheet(meal,keep){S.logMeal=meal||S.logMeal||guessMeal();draft=[];if(!keep)tray=[];S.browse=S.browse&&cats().includes(S.browse)?S.browse:cats()[0];const fr=freq(me());
+  sheet(sheetBar('وش أكلت؟','<span class="link"></span>','<button class="link" data-act="close">إلغاء</button>')+`
   <div class="seg wide" role="group" aria-label="الوجبة" id="mealseg">${MEALT.map(m=>`<button data-act="logmeal" data-m="${m}" aria-pressed="${m===S.logMeal}">${m}</button>`).join('')}</div>
-  <div class="scanrow"><button class="btn tint" data-act="livescan">${sv('scan')}امسح الباركود</button><button class="btn tint" data-act="manualcode">اكتب رقمه</button></div>
-  <input class="field" id="food" placeholder="توست بر شريحتين، دجاج مقلي 150، رز 100" autocomplete="off">
-  <div class="group parsed" id="parsed">${EMPTY}</div>
-  ${fr.length?`<section class="sec"><div class="cap"><span>أكلاتك المتكررة</span><span>ضغطة وتنضاف</span></div><div class="group">${fr.map(x=>`<button class="row plain" data-act="addfreq" data-k="${esc(x.n+'|'+x.g)}"><span class="tx"><b>${esc(food(x.n).n)}</b><span class="num">${qtyItem(x)} · أكلتها ${times(x.count)}</span></span><span class="end num">${fmt(itemK(x).k)}</span></button>`).join('')}</div></section>`:''}
-  <section class="sec"><div class="cap"><span>أو اختر من الأصناف</span><span class="num">${FOODS.length} صنف</span></div>
+  <section class="sec" id="traysec"></section>
+  <div class="addrow"><input class="field" id="food" type="search" enterkeyhint="done" placeholder="دوّر أو اكتب: رز 100، دجاج 200" autocomplete="off"><button class="btn tint" data-act="livescan" aria-label="امسح الباركود">${sv('scan')}</button></div>
+  <div id="typed"></div>
+  <div id="picks">
+  ${fr.length?`<section class="sec"><div class="cap"><span>أكلاتك المتكررة</span><span>اضغط وتنحط في وجبتك</span></div><div class="group">${fr.map(x=>`<button class="row plain" data-act="addfreq" data-k="${esc(x.n+'|'+x.g)}"><span class="tx"><b>${esc(food(x.n).n)}</b><span class="num">${qtyItem(x)} · ${fmt(itemK(x).k)} سعرة</span></span><span class="plus">+</span></button>`).join('')}</div></section>`:''}
+  <section class="sec"><div class="cap"><span>الأصناف</span><span class="num">${FOODS.length} صنف</span></div>
    <div class="hscroll" id="cats">${cats().map(c=>`<button class="chip" data-act="browse" data-c="${c}" aria-pressed="${c===S.browse}">${c}</button>`).join('')}</div>
-   <div class="group" id="browse">${browseList()}</div></section>`);
+   <div class="group" id="browse">${browseList()}</div></section>
+  <button class="link" data-act="manualcode" style="align-self:center;padding:4px">ما ينقرأ الباركود؟ اكتب رقمه</button>
+  </div>
+  <div class="sheetfoot"><button class="btn" data-act="addfood" id="addbtn"></button></div>`);
+  drawTray();
   const f=$('#food');
-  f.addEventListener('input',()=>{const prev=draft;draft=parse(f.value).map(e=>{const o=prev.find(p=>p.raw===e.raw&&p.ov);return o?{...e,id:o.id,ov:true}:e});drawDraft()});
-  $('#parsed').addEventListener('change',e=>{const s=e.target.closest('select');if(!s)return;Object.assign(draft[+s.dataset.i],{id:s.value,ov:true});drawDraft()})}
-function drawDraft(){const box=$('#parsed');if(!draft.length){box.innerHTML=EMPTY;return}let t=0;
-  box.innerHTML=draft.map((e,i)=>{if(!e.id)return `<div class="item miss"><span>${esc(e.raw)}</span><span>ما عرفته</span></div>`;
+  f.addEventListener('input',()=>{const prev=draft;draft=parse(f.value).map(e=>{const o=prev.find(p=>p.raw===e.raw&&p.ov);return o?{...e,id:o.id,ov:true}:e});drawTyped()});
+  f.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();typedToTray()}});
+  $('#typed').addEventListener('change',e=>{const s=e.target.closest('select');if(!s)return;Object.assign(draft[+s.dataset.i],{id:s.value,ov:true});drawTyped()});
+  wireQty($('#traysec'),()=>tray,drawTray)}
+// what was typed: with amounts it shows what was understood; a bare word searches the list
+function drawTyped(){const box=$('#typed'),picks=$('#picks'),q=norm(($('#food').value||'').replace(/[\d٠-٩.]+/g,'')).trim();
+  if(!draft.length){box.innerHTML='';picks.hidden=false;return}
+  const parsedOnly=draft.length>1||draft.some(e=>e.num!==null||e.mode);
+  picks.hidden=true;
+  if(!parsedOnly){const hits=FOODS.filter(f=>[f.n,...f.a].some(a=>norm(a).includes(q))).slice(0,12);
+    box.innerHTML=`<div class="group">${hits.length?hits.map(foodRow).join(''):`<div class="item" style="color:var(--label2)">ما لقيت «${esc(q)}». جرّب اسم ثاني أو امسح الباركود.</div>`}</div>`;return}
+  let t=0;
+  box.innerHTML=`<div class="group parsed">${draft.map((e,i)=>{if(!e.id)return `<div class="item miss"><span>${esc(e.raw)}</span><span>ما عرفته</span></div>`;
    const f=FD[e.id],am=amount(f,e),k=f.k*am.g/100,alts=PICK.includes(f.cat)?FOODS.filter(x=>x.cat===f.cat):null;t+=k;
-   return `<div class="item"><span class="dn">${alts?`<select data-i="${i}" aria-label="النوع">${alts.map(x=>`<option ${x===f?'selected':''}>${x.n}</option>`).join('')}</select>`:`<b>${esc(f.n)}</b>`}<small class="num">${qty(f,am)}</small></span><span class="num">${fmt(k)}</span></div>`}).join('')
-   +`<div class="item tot"><span>المجموع</span><span class="num">${fmt(t)} سعرة</span></div>`}
-function browseList(){return FOODS.filter(f=>f.cat===S.browse).map(f=>`<button class="row plain" data-act="pickfood" data-n="${esc(f.n)}"><span class="tx"><b>${esc(f.n)}</b><span class="num">${f.ug?fmt(f.k*f.ug/100)+' سعرة / '+f.u:fmt(f.k)+' سعرة / 100 جم'}</span></span><span class="end" style="color:var(--accent);font-size:22px">+</span></button>`).join('')}
+   return `<div class="item"><span class="dn">${alts?`<select data-i="${i}" aria-label="النوع">${alts.map(x=>`<option ${x===f?'selected':''}>${x.n}</option>`).join('')}</select>`:`<b>${esc(f.n)}</b>`}<small class="num">${qty(f,am)}</small></span><span class="num">${fmt(k)}</span></div>`}).join('')}</div>
+   <button class="btn tint" data-act="typedadd">حطها في وجبتك${t?' · '+fmt(t)+' سعرة':''}</button>`}
+function typedToTray(){const ok=draft.filter(e=>e.id),miss=draft.filter(e=>!e.id);if(!ok.length){if(miss.length)toast('ما عرفت: '+miss.map(e=>e.raw).join('، '));return}
+  trayAdd(ok.map(e=>{const f=FD[e.id],am=amount(f,e);return it(f.n,Math.round(am.g),am.c)}));
+  const f=$('#food');f.value='';draft=[];drawTyped();if(miss.length)toast('ما عرفت: '+miss.map(e=>e.raw).join('، '))}
+const foodRow=f=>`<button class="row plain" data-act="pickfood" data-n="${esc(f.n)}"><span class="tx"><b>${esc(f.n)}</b><span class="num">${f.ug?fmt(f.k*f.ug/100)+' سعرة / '+f.u:fmt(f.k)+' سعرة / 100 جم'}</span></span><span class="plus">+</span></button>`;
+function browseList(){return FOODS.filter(f=>f.cat===S.browse).map(foodRow).join('')}
+// one food at its usual amount: a unit if it has one, else 100 g
+const defItem=f=>f.ug?it(f.n,f.ug,1):it(f.n,100);
+// adding the same food again raises its amount instead of listing it twice
+function trayAdd(items){let last=-1;items.forEach(x=>{const f=food(x.n),i=tray.findIndex(y=>y.n===x.n);
+    if(i<0){tray.push({...x});last=tray.length-1;return}
+    const y=tray[i];if(y.c!=null&&x.c!=null&&f.ug){y.c+=x.c;y.g=Math.round(y.c*f.ug)}else{y.g+=x.g;delete y.c}last=i});
+  if(navigator.vibrate)navigator.vibrate(12);drawTray(last);
+  const sec=$('#traysec');if(sec&&sec.getBoundingClientRect().top<0)sec.scrollIntoView({behavior:calm()?'auto':'smooth',block:'start'})}
+// amount controls: units step by 1 (a half below one), grams by 25 up to 100 then 50
+function stepItem(x,dir){const f=food(x.n);
+  if(x.c!=null&&f.ug){let c=x.c;c=dir>0?(c<1?c+.5:c+1):(c<=1?c-.5:c-1);if(c<=0)return false;x.c=c;x.g=Math.round(c*f.ug);return true}
+  const s=dir>0?(x.g<100?25:50):(x.g<=100?25:50),gr=Math.round(x.g/s)*s===x.g?x.g+dir*s:dir>0?Math.ceil(x.g/s)*s:Math.floor(x.g/s)*s;
+  if(gr<=0)return false;x.g=gr;return true}
+function setItem(x,v){const f=food(x.n);if(!(v>0))return false;if(x.c!=null&&f.ug){x.c=v;x.g=Math.round(v*f.ug)}else x.g=Math.round(v);return true}
+function qtyRow(x,i,keep){const f=food(x.n),v=itemK(x),unit=x.c!=null&&f.ug,alts=PICK.includes(f.cat)?FOODS.filter(y=>y.cat===f.cat):null;
+  return `<div class="titem" data-i="${i}"><div class="tn">${alts?`<select data-i="${i}" aria-label="النوع">${alts.map(y=>`<option ${y===f?'selected':''}>${y.n}</option>`).join('')}</select>`:`<b>${esc(f.n)}</b>`}<small class="num">${fmt(v.k)} سعرة · ${Math.round(v.p)} بروتين${unit?' · '+fmt(x.g)+' جم':''}</small></div>
+   <div class="stp"><button data-act="qty" data-i="${i}" data-d="-1" aria-label="أقل">${!keep&&(unit?x.c<=.5:x.g<=25)?'×':'−'}</button><label><input type="number" inputmode="decimal" data-i="${i}" value="${unit?+x.c.toFixed(2):x.g}" aria-label="الكمية"><span>${unit?esc(f.u):'جم'}</span></label><button data-act="qty" data-i="${i}" data-d="1" aria-label="أكثر">+</button></div></div>`}
+let qtyList=()=>tray,qtyDraw=()=>drawTray();
+function wireQty(root,list,draw){qtyList=list;qtyDraw=draw;
+  root.addEventListener('change',e=>{const t=e.target,i=+t.dataset.i,L=list(),x=L[i];if(!x)return;
+    if(t.tagName==='SELECT'){const nf=FD[t.value];x.n=nf.n;if(x.c!=null&&nf.ug)x.g=Math.round(x.c*nf.ug);else if(x.c!=null)delete x.c;draw();return}
+    if(t.tagName==='INPUT'){if(!setItem(x,+t.value))L.splice(i,1);draw()}})}
+function drawTray(flash){const sec=$('#traysec');if(!sec)return;const T=tray.reduce((t,x)=>{const v=itemK(x);t.k+=v.k;t.p+=v.p;return t},{k:0,p:0});
+  sec.innerHTML=`<div class="cap"><span>وجبتك</span><span class="num">${tray.length?tray.length+(tray.length===1?' صنف':tray.length===2?' صنفين':' أصناف')+' · '+fmt(T.k)+' سعرة':''}</span></div>
+   <div class="group tray">${tray.length?tray.map(qtyRow).join(''):'<div class="trayempty">اختر من تحت أو اكتب، وتتجمع الأصناف هنا.<br>تقدر تعدّل كمية كل صنف قبل ما تضيف.</div>'}</div>`;
+  if(flash!=null&&flash>-1){const r=sec.querySelector(`.titem[data-i="${flash}"]`);if(r)r.classList.add('flash')}
+  const b=$('#addbtn');if(b){b.disabled=!tray.length;b.textContent=tray.length?`أضف لل${S.logMeal} · ${fmt(T.k)} سعرة`:'اختر أكلك أول'}}
+// after adding: show the meal on the food page so it is obvious it went in
+function showMeal(m){S.tab='food';S.foodView='me';after=()=>{const s=document.querySelector(`.sec[data-meal="${m}"]`);if(!s)return;
+  s.scrollIntoView({behavior:calm()?'auto':'smooth',block:'center'});s.classList.remove('flash');void s.offsetWidth;s.classList.add('flash')}}
 
 /* ---- barcode ---- */
 let _sample;
@@ -316,9 +364,14 @@ function howSheet(i){const e=WORK[S.wday].ex[i];
   sheet(sheetBar(WORK[S.wday].t)+`<div><h2>${e.n}</h2><p class="hint num" style="padding:0;margin-top:4px">${e.s}</p></div>
   <section class="sec"><div class="cap"><span>الطريقة</span></div><div class="group"><ol class="steps">${e.how.map(s=>`<li>${s}</li>`).join('')}</ol></div></section>
   <div class="tipbox">${ic('bolt','#5856D6')}<span>${e.tip}</span></div>`)}
-function delSheet(m,i){const x=S.p[me()].log[m][i];
-  sheet(sheetBar(m)+`<p style="margin:0;text-align:center;font-size:15px;color:var(--label2)">تحذف ${esc(food(x.n).n)} (${qtyItem(x)}) من ${m}؟</p>
-  <button class="btn danger" data-act="dodel" data-m="${m}" data-i="${i}">احذف</button>`)}
+// tapping something already logged: change its amount or remove it
+function delSheet(m,i){const x=S.p[me()].log[m][i];edit={m,i,L:[{...x}]};
+  sheet(sheetBar('عدّل الكمية','<button class="link" data-act="saveedit" style="font-weight:600">احفظ</button>','<button class="link" data-act="close">إلغاء</button>')+`
+  <section class="sec" id="editsec"></section>
+  <button class="btn danger" data-act="dodel" data-m="${m}" data-i="${i}">احذفه من ${m==='سناك'?'السناك':'ال'+m}</button>`);
+  drawEdit();wireQty($('#editsec'),()=>edit.L,drawEdit)}
+function drawEdit(){const sec=$('#editsec');if(!sec)return;if(!edit.L.length){edit.L=[{...S.p[me()].log[edit.m][edit.i]}]}
+  sec.innerHTML=`<div class="cap"><span>${edit.m}</span></div><div class="group tray">${qtyRow(edit.L[0],0,true)}</div>`}
 function profileSheet(){const id=me(),p=S.p[id],taken=S.p[them()].color;sheet(sheetBar('ملفي')+`
   <div style="display:flex;flex-direction:column;align-items:center;gap:10px">${ava(id,96)}
    <label class="link" style="cursor:pointer">${p.photo?'غيّر الصورة':'أضف صورتك'}<input type="file" id="photo" accept="image/*" hidden></label></div>
@@ -353,14 +406,18 @@ document.addEventListener('click',e=>{
    case 'logmeal':S.logMeal=d.m;document.querySelectorAll('#mealseg button').forEach(b=>b.setAttribute('aria-pressed',b===el));placeInd(el.closest('.seg'));return;
    case 'manualcode':codeSheet('رقم الباركود','اكتب الأرقام اللي تحت الخطوط.');return;
    case 'opencode':openCode(($('#code-in')||{}).value||'');return;
-   case 'addfreq':{const x=S.p[A].hist[d.k];if(!x)return;const k=addItems(A,[it(x.n,x.g,x.c)],food(x.n).n);closeSheet();toast('+'+fmt(k)+' سعرة · '+food(x.n).n);break}
+   case 'addfreq':{const x=S.p[A].hist[d.k];if(!x)return;trayAdd([it(x.n,x.g,x.c)]);return}
+   case 'qty':{const L=qtyList(),i=+d.i,x=L[i];if(!x)return;if(!stepItem(x,+d.d)){if(L===tray)L.splice(i,1);else toast('للحذف اضغط «احذفه» تحت')}qtyDraw();return}
+   case 'typedadd':typedToTray();return;
+   case 'saveedit':{if(!edit)return;const L=S.p[A].log[edit.m],before=eaten(A);if(!L[edit.i]){closeSheet();return}L[edit.i]=edit.L[0];remember(A,[edit.L[0]]);checkOver(A,before);closeSheet();toast('انحفظ ✓');break}
    case 'amtq':S.amt.g=+d.g;updAmt();return;
    case 'addprod':{const pr=S.products[S.amt.code],gr=Math.round(S.amt.g);if(!(gr>0)){toast('اكتب الكمية');return}
-     const c=pr.ug&&Math.abs(gr/pr.ug-Math.round(gr/pr.ug))<.01?Math.round(gr/pr.ug):undefined;const k=addItems(A,[it(pr.n,gr,c)],pr.n);closeSheet();toast('+'+fmt(k)+' سعرة · '+pr.n);break}
+     const c=pr.ug&&Math.abs(gr/pr.ug-Math.round(gr/pr.ug))<.01?Math.round(gr/pr.ug):undefined;logSheet(S.logMeal,true);trayAdd([it(pr.n,gr,c)]);return}
    case 'saveprod':{const v=id=>{const x=$(id);return x?x.value.trim():''};let n=v('#np-n');const k=+v('#np-k');if(!n||v('#np-k')===''||!(k>=0)){toast('اكتب الاسم والسعرات');return}
      if(FD[n]&&FD[n].cat!=='منتجاتي')n+=' (منتج)';S.products[d.code]={code:d.code,n,k,p:+v('#np-p')||0,pkg:+v('#np-pkg')||0,ug:+v('#np-ug')||0};registerProducts();save();amountSheet(d.code);toast('انحفظ المنتج');return}
    case 'browse':S.browse=d.c;document.querySelectorAll('#cats .chip').forEach(b=>b.setAttribute('aria-pressed',b===el));$('#browse').innerHTML=browseList();return;
-   case 'pickfood':{const f=FD[d.n],inp=$('#food');inp.value=(inp.value.trim()?inp.value.trim()+'، ':'')+(f.a[0]||f.n)+(f.ug?' 1 '+f.u:' 100 جم');inp.dispatchEvent(new Event('input'));toast('انضاف '+f.n+'، عدّل الكمية فوق');return}
+   case 'pickfood':{const f=FD[d.n];if(!f)return;trayAdd([defItem(f)]);const inp=$('#food');if(inp&&inp.value){inp.value='';draft=[];drawTyped()}
+     const pl=el.querySelector('.plus');if(pl){pl.textContent='✓';pl.classList.add('ok');setTimeout(()=>{pl.textContent='+';pl.classList.remove('ok')},900)}return}
    case 'cheer':if(S.solo){inviteSheet();return}cheerSheet();return;
    case 'profile':profileSheet();return;
    case 'meal':mealSheet(+d.i);return;
@@ -384,9 +441,9 @@ document.addEventListener('click',e=>{
    case 'pendone':S.pen.done=!S.pen.done;if(S.pen.done){pushFeed({who:A,t:g(A,'خلّص','خلّصت')+' العقاب 💪 +10',at:now()});toast('كفو! +10 نقاط');confetti()}break;
    case 'exdone':{const p=S.p[A],i=+d.i,j=p.done.indexOf(i);if(j>-1)p.done.splice(j,1);else{p.done.push(i);after=()=>{const b=$('.chk[data-act="exdone"][data-i="'+i+'"]');if(b)b.classList.add('pop')}}woCheck(A);break}
    case 'dodel':{const before=eaten(A);S.p[A].log[d.m].splice(+d.i,1);checkOver(A,before);closeSheet();toast('انحذف');break}
-   case 'addmeal':{const m=MEALS[+d.i];S.logMeal=m.t;addItems(A,m.items.map(([n,gr])=>it(n,gr)),m.n);closeSheet();toast('انضافت لل'+m.t);break}
-   case 'addfood':{const r=draft.filter(x=>x.id).map(e=>{const f=FD[e.id],am=amount(f,e);return{f,am,k:f.k*am.g/100}});if(!r.length){toast('اكتب الأكل والكمية');return}
-     const k=addItems(A,r.map(x=>it(x.f.n,Math.round(x.am.g),x.am.c)));closeSheet();toast('+'+fmt(k)+' سعرة');break}
+   case 'addmeal':{const m=MEALS[+d.i];tray=m.items.map(([n,gr])=>it(n,gr));logSheet(m.t,true);toast('عدّل الكميات واضغط أضف');return}
+   case 'addfood':{if(draft.some(e=>e.id))typedToTray();if(!tray.length){toast('اختر أكلك أول');return}
+     const m=S.logMeal,k=addItems(A,tray.map(x=>({...x})));tray=[];closeSheet();showMeal(m);toast('✓ انضاف لل'+m+' · '+fmt(k)+' سعرة');break}
   }
   save();render();if(after){after();after=null}
 });

@@ -81,7 +81,7 @@ main{flex:1;display:flex;flex-direction:column;gap:22px;padding-block:8px 28px}
 .score .n i{font-style:normal;color:var(--label3);font-weight:500;font-size:18px}
 .score small{font-size:11px;color:var(--label2);font-weight:600}
 .together{display:flex;flex-direction:column;gap:7px;border-top:.5px solid var(--sep);padding-top:14px}
-.together .r{display:flex;justify-content:space-between;font-size:15px}
+.together .r{display:flex;justify-content:space-between;gap:10px;font-size:15px}
 .together .r span{color:var(--label2)}
 .tbar{height:8px;border-radius:9px;background:var(--fill);overflow:hidden;display:flex}
 .tbar i{height:100%}
@@ -301,6 +301,29 @@ html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 .copyrow{display:flex;gap:8px;align-items:center}
 .copyrow .mono{flex:1;min-width:0;padding:10px;font-size:12px}
 .offline{position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;font-size:13px;font-weight:600;padding:6px 14px;border-radius:99px;z-index:20}
+.addrow{display:flex;gap:8px;align-items:stretch}.addrow .field{flex:1;min-width:0}.addrow>.btn{flex:0 0 52px;width:52px;padding:0}
+.addrow .field::-webkit-search-cancel-button{display:none}
+.plus{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);font-size:20px;font-weight:600;transition:transform .2s var(--out),background-color .2s}
+.plus.ok{background:var(--accent);color:#fff;transform:scale(1.12)}
+.tray{overflow:hidden}
+.titem{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;position:relative;padding-inline:16px 10px}
+.titem+.titem::before{content:"";position:absolute;top:0;inset-inline:16px 0;border-top:.5px solid var(--sep)}
+.titem .tn{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.titem .tn b{font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.titem .tn small{font-size:12.5px;color:var(--label2)}
+.titem select{border:0;background:var(--fill);border-radius:8px;padding:5px 8px;font-size:15px;font-weight:600;max-width:100%;color:var(--label);align-self:flex-start}
+.titem.flash{animation:flash 1s ease-out}
+.sec.flash .group{animation:flash 1.4s ease-out}
+@keyframes flash{0%{background-color:color-mix(in srgb,var(--accent) 26%,var(--cell))}100%{background-color:var(--cell)}}
+.stp{flex:none;display:flex;align-items:center;background:var(--fill);border-radius:10px;direction:ltr}
+.stp button{border:0;background:none;width:38px;height:38px;font-size:22px;line-height:1;color:var(--accent);font-weight:500;cursor:pointer;touch-action:manipulation}
+.stp button:active{transform:scale(.88)}
+.stp label{min-width:70px;justify-content:center;display:flex;align-items:baseline;gap:2px;font-size:12px;color:var(--label2);direction:rtl}
+.stp input{width:44px;border:0;background:none;text-align:center;font-size:16px;font-weight:700;color:var(--label);padding:0;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.stp input::-webkit-inner-spin-button,.stp input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.trayempty{padding:16px;color:var(--label2);font-size:14px;text-align:center;line-height:1.6}
+.sheetfoot{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));margin:auto -16px calc(-20px - env(safe-area-inset-bottom,0px));padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:.5px solid var(--sep);z-index:2}
+.sheetfoot .btn{width:100%}.sheetfoot .btn:disabled{opacity:.45}
 </style>
 </head>
 <body>
@@ -309,8 +332,8 @@ html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 <div class="toast" id="toast" hidden></div>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script src="data.js?v=93605892"></script>
-<script src="app.js?v=93605892"></script>
-<script src="sync.js?v=93605892"></script>
+<script src="data.js?v=93609174"></script>
+<script src="app.js?v=93609174"></script>
+<script src="sync.js?v=93609174"></script>
 </body>
 </html>
